@@ -10,7 +10,7 @@
 // Outside the grader's container, MAKEFUN_BOT_DIR and MAKEFUN_OUTPUT_DIR stand in for /bot and /output:
 //   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? '/bot';
@@ -22,4 +22,28 @@ try {
 } catch (err) {
   console.error(`POST.json could not be copied from ${BOT_DIR}: ${(err as Error).message}`);
   process.exit(1);
+}
+
+// Pass 1: read the copied POST.json back and extract its "url" field.
+let postUrl: string | undefined;
+try {
+  const raw = readFileSync(join(OUTPUT_DIR, 'POST.json'), { encoding: 'utf-8' });
+  const parsed = JSON.parse(raw);
+  if (typeof parsed === 'object' && parsed !== null && 'url' in parsed) {
+    postUrl = String((parsed as any).url);
+  } else {
+    console.error('POST.json does not contain a "url" field.');
+  }
+} catch (e) {
+  console.error(`Failed to read or parse POST.json: ${(e as Error).message}`);
+}
+
+// Pass 2: validate the extracted URL and report its status.
+if (postUrl) {
+  const isXPost = /^https?:\/\/([a-zA-Z0-9.-]+\.)?x\.com\/[^/]+\/status\/\d+$/.test(postUrl);
+  if (isXPost) {
+    console.log(`Recorded post URL: ${postUrl}`);
+  } else {
+    console.warn('Warning: URL does not appear to be a valid X post address.');
+  }
 }
